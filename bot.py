@@ -152,4 +152,4 @@ async def rs(ctx, nickname: str = "xd", mode: str = "0",):
     await ctx.message.channel.send(nickname + " " + str(mapa.title))
 
 
-bot.run('Njg0MDU3MjM2MjA0ODE0Mzk4.Xl_crg.hq8P-aqHwR0uMaQdtucyL6AGUHs')
+bot.run('')
