@@ -8,7 +8,7 @@ from discord.ext import commands
 
 prefix = '$'
 
-api = OsuApi('bc9f34f842a780c634153f5b3fb32b211b3ac8f3')
+api = OsuApi('')
 bot = commands.Bot(command_prefix='!')
 
 
