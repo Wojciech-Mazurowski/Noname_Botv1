@@ -24,9 +24,9 @@ def get_username(discord_name):
             z = z[0]
             break
     if islinked == 1:
-        return(z)
+        return (z)
     else:
-        return("0")
+        return ("0")
 
 
 async def user_stats():
@@ -137,9 +137,29 @@ async def find_beatmap(beatmap_id):
     beatmap = await api.get_beatmap(beatmap_id=beatmap_id)
     return beatmap
 
+
+def decode_mods(mods):
+    ans = ""
+    if mods == 8:
+        ans = "HD"
+    if mods == 1:
+        ans = "NF"
+    if mods == 16:
+        ans = "HR"
+    if mods == 64:
+        ans = "DT"
+    if mods == 1024:
+        ans = "FL"
+    if mods == 512:
+        ans = "NC"
+    if mods == 256:
+        ans = "HT"
+    return ans
+
+
 @bot.command(name='rs', help="!rs (optional: nickname -mode (m = mania, t = taiko, c = ctb, works without "
                              "nickname for linked ppl, default mode is standard")
-async def rs(ctx, nickname: str = "xd", mode: str = "0",):
+async def rs(ctx, nickname: str = "xd", mode: str = "0", ):
     if get_username(ctx.message.author) != "0":
         nickname = get_username(ctx.message.author)
         mode = determine_mode(mode)
@@ -149,7 +169,9 @@ async def rs(ctx, nickname: str = "xd", mode: str = "0",):
         x = await user_recent(nickname, mode)
     mapa = await find_beatmap(x.beatmap_id)
 
-    await ctx.message.channel.send(nickname + " " + str(mapa.title))
+    await ctx.message.channel.send(nickname + " - " + str(mapa.artist) + " - " + str(mapa.title) +
+                                   " [" + str(mapa.version) + "] +" + str(decode_mods(x.enabled_mods)) + str(
+        x.__dict__))
 
 
 bot.run('')
