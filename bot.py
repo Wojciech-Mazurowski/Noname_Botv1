@@ -8,7 +8,7 @@ from discord.ext import commands
 
 prefix = '!'
 
-api = OsuApi('5eaee387e2e93991bb476b69de2a18741a502747')
+api = OsuApi('')
 bot = commands.Bot(command_prefix=prefix)
 
 
@@ -333,4 +333,4 @@ async def rs(ctx, mode: str = "0", nickname: str = "xd"):
 
 
 
-bot.run('Njg0MDU3MjM2MjA0ODE0Mzk4.XmFncg.XowWLUM9_q-0bj_RsNKeHaWnqh8')
+bot.run('')
