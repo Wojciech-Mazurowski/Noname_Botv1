@@ -6,26 +6,30 @@ import os
 import pyosu
 from discord.ext import commands
 
-prefix = '$'
+prefix = '!'
 
-api = OsuApi('')
-bot = commands.Bot(command_prefix='!')
+api = OsuApi('5eaee387e2e93991bb476b69de2a18741a502747')
+bot = commands.Bot(command_prefix=prefix)
 
 
-def count_notes(beatmap):
+def count_notes(player_score): # player score is a list with user_recent
     notes = 0
-    notes += beatmap.count300
-    notes += beatmap.count50
-    notes += beatmap.count100
-    notes += beatmap.countmiss
-    notes += beatmap.countkatu
-    notes += beatmap.countgeki
+    notes += player_score.count300
+    notes += player_score.count50
+    notes += player_score.count100
+    notes += player_score.countmiss
+    notes += player_score.countkatu
+    notes += player_score.countgeki
     
     return notes
 
 
-def calculate_acc(beatmap, gamemode: int):
-    if gamemode == 0: # std
+def calculate_acc(beatmap, gamemode):
+    user_score = 0.0
+    unscaled = 1.0
+
+    if gamemode == '0': # std
+
         '''   full score:  '''
         unscaled = float(beatmap.count300)
         unscaled += float(beatmap.count100)
@@ -39,7 +43,7 @@ def calculate_acc(beatmap, gamemode: int):
         user_score += float(beatmap.count100) * 100.0
         user_score += float(beatmap.count50) * 50.0
     
-    elif gamemode == 1: # dont remember
+    elif gamemode == '1': # dont remember
         '''   full score:  '''
         unscaled = float(beatmap.count300)
         unscaled += float(beatmap.count100)
@@ -54,7 +58,7 @@ def calculate_acc(beatmap, gamemode: int):
        
        
        
-    elif gamemode == 2: # tezn ie pamietam
+    elif gamemode == '2': # tezn ie pamietam
         '''   full score:  '''
         unscaled = float(beatmap.count300)
         unscaled += float(beatmap.count100)
@@ -69,11 +73,11 @@ def calculate_acc(beatmap, gamemode: int):
         user_score += float(beatmap.count50) * 50.5
         
         
-    elif gamemode == 3: # mania
+    elif gamemode == '3': # mania
         '''    full score:   '''
         unscaled = float(beatmap.count300)
         unscaled += float(beatmap.count100)
-        unsclaed += float(beatmap.count50)
+        unscaled += float(beatmap.count50)
         unscaled += float(beatmap.countgeki)
         unscaled += float(beatmap.countkatu)
         unscaled += float(beatmap.countmiss)
@@ -86,34 +90,38 @@ def calculate_acc(beatmap, gamemode: int):
         user_score += float(beatmap.countgeki) * 300.0
         user_score += float(beatmap.countkatu) * 200.0
 
-    return (float(user_score)/float(unscaled))* 100.0
+    return round((float(user_score)/float(unscaled)) * 100.0, 2)
     
 
 def calculate_mania_pp(beatmap, player_score):
 
+    mods = get_mods(player_score.enabled_mods)
+
     multiplier = 0.8
-    if mods == "NF":
-        multiplier *= 0.9
-    if mods == "EZ":
-        multipler *= 0.5
-        
-    mods = decode_mods(beatmap.enabled_mods)
+    for mod in mods:
+        if mod == "NF":
+            multiplier *= 0.9
+        if mod == "EZ":
+            multiplier *= 0.5
+
     score = player_score.score
     od = beatmap.diff_overall
-    note_count = count_notes(beatmap)
+    note_count = count_notes(player_score)
     stars = beatmap.difficultyrating
-    if mods == "EZ" or mods== "NF" or mods == "HT":
-        score *= 0.5
-    hit300_range = 34 + 3 * (min(10, max(0, 10-od)))
+
+    for mod in mods:
+        if mod == "EZ" or mod == "NF" or mod == "HT":
+            score *= 0.5
+
+    hit300_range = float(34 + 3 * (min(10.0, max(0.0, 10-od))))
     
-    strain_value = (5 * max(1, stars / 0.2) - 4) ** 2.2 / 135 * (1 + 0.1 *
-    min(1, note_count/1500))
+    strain_value = float((5 * max(1.0, stars / 0.2) - 4) ** 2.2 / 135 * (1 + 0.1 * min(1.0, note_count/1500)))
     
-    if score <= 50000:
-        strain_value=0
+    if score <= 500000:
+        strain_value = 0
     
     elif score <= 600000:
-        strain_value *= (((score - 500000) / 100000 * 0.3)
+        strain_value *= ((score - 500000) / 100000 * 0.3)
         
     elif score <= 700000:
         strain_value *= (0.3 + (score - 600000) / 100000 * 0.25)
@@ -127,12 +135,17 @@ def calculate_mania_pp(beatmap, player_score):
     else:
         strain_value *= (0.75 + (score - 800000) / 100000 * 0.15)
     
-    acc_value *= max(0, 0.2 - ((hit300_range - 34) * 0.006667)) * strain_value *
-    (max(0,score - 960000) / 40000) ** 1.1
+    acc_value = float(max(0.0, 0.2 - ((hit300_range - 34) * 0.006667)) * strain_value * (max(0, score - 960000) / 40000)
+                      ** 1.1)
+
+
+
+    pp_value = ((strain_value ** 1.1) + (acc_value ** 1.1)) ** (1 / 1.1) * multiplier
+
+    if pp_value < 0:
+        pp_value = 0
     
-    PP_value = (strain_value ** 1.1 + acc_value ** 1.1) ** (1 / 1.1) * multiplier
-    
-    return PP_value
+    return round(pp_value, 2)
     
     
 def get_username(discord_name):
@@ -224,52 +237,39 @@ async def link(ctx, username: str, ):
 
 @bot.command(name='stary_gracz', help='Posluchaj no slow starego dobrego gracza')
 async def stary_gracz(ctx):
-    old_player_quotes = [
-        'A juz za stary jestem na to',
-        'Po 18 roku zycia to juz sie tylko wolniejszy robisz',
-        'Pamietam jak sie mnie jescze pytales na jakim tablecie gram',
-        'Tęsknie za 2015...',
-        'Kiedys to byly na serio fajne mapy a nie to co tera >:(',
-        'Hime Hime',
-        'Obama? No pewnie ze znam',
-        'Nie no ja na myszce bardzo dlugo gralem, wtedy to sie nie wiedzialo co to jest pp',
-        ('Jak ja zaczynalem, to nawet nie wiedzialem co to pp'
-         'Po prostu gralem.'
-         ),
-        'Musialem quitnac bo mnie bolal nadgarstek :(',
-        'Granie na relaxie nic nie daje'
-    ]
-
+    f = open("stary.txt", "r+")
+    old_player_quotes = f.readlines()
+    f.close()
     response = random.choice(old_player_quotes)
     await ctx.message.channel.send(response)
 
 
 def get_mods(mode):  #taken from pyttanko
-    number = int(number)
+    mode = int(mode)
     mods = []
-    if number & 1<<0:   mods.append('NF')
-    if number & 1<<1:   mods.append('EZ')
-    if number & 1<<3:   mods.append('HD')
-    if number & 1<<4:   mods.append('HR')
-    if number & 1<<5:   mods.append('SD')
-    if number & 1<<9:   mods.append('NC')
-    elif number & 1<<6: mods.append('DT')
-    if number & 1<<7:   mods.append('RX')
-    if number & 1<<8:   mods.append('HT')
-    if number & 1<<10:  mods.append('FL')
-    if number & 1<<12:  mods.append('SO')
-    if number & 1<<14:  mods.append('PF')
-    if number & 1<<15:  mods.append('4 KEY')
-    if number & 1<<16:  mods.append('5 KEY')
-    if number & 1<<17:  mods.append('6 KEY')
-    if number & 1<<18:  mods.append('7 KEY')
-    if number & 1<<19:  mods.append('8 KEY')
-    if number & 1<<20:  mods.append('FI')
-    if number & 1<<24:  mods.append('9 KEY')
-    if number & 1<<25:  mods.append('10 KEY')
-    if number & 1<<26:  mods.append('1 KEY')
-    if number & 1<<27:  mods.append('3 KEY')
-    if number & 1<<28:  mods.append('2 KEY')
+    if mode & 1 << 0:   mods.append('NF')
+    if mode & 1 << 1:   mods.append('EZ')
+    if mode & 1 << 3:   mods.append('HD')
+    if mode & 1 << 4:   mods.append('HR')
+    if mode & 1 << 5:   mods.append('SD')
+    if mode & 1 << 9:   mods.append('NC')
+    elif mode & 1 << 6: mods.append("DT")
+    if mode & 1 << 7:   mods.append('RX')
+    if mode & 1 << 8:   mods.append('HT')
+    if mode & 1 << 10:  mods.append('FL')
+    if mode & 1 << 12:  mods.append('SO')
+    if mode & 1 << 14:  mods.append('PF')
+    if mode & 1 << 15:  mods.append('4 KEY')
+    if mode & 1 << 16:  mods.append('5 KEY')
+    if mode & 1 << 17:  mods.append('6 KEY')
+    if mode & 1 << 18:  mods.append('7 KEY')
+    if mode & 1 << 19:  mods.append('8 KEY')
+    if mode & 1 << 20:  mods.append('FI')
+    if mode & 1 << 24:  mods.append('9 KEY')
+    if mode & 1 << 25:  mods.append('10 KEY')
+    if mode & 1 << 26:  mods.append('1 KEY')
+    if mode & 1 << 27:  mods.append('3 KEY')
+    if mode & 1 << 28:  mods.append('2 KEY')
     
     return mods
 
@@ -290,49 +290,47 @@ async def find_beatmap(beatmap_id):
     return beatmap
 
 
-def decode_mods(mods):
-    ans = ""
-    if mods == 8:
-        ans = "HD"
-    if mods == 1:
-        ans = "NF"
-    if mods == 16:
-        ans = "HR"
-    if mods == 64:
-        ans = "DT"
-    if mods == 1024:
-        ans = "FL"
-    if mods == 512:
-        ans = "NC"
-    if mods == 256:
-        ans = "HT"
-    return ans
 
 
 @bot.command(name='rs', help="!rs (optional: nickname -mode (m = mania, t = taiko, c = ctb, works without "
                              "nickname for linked ppl, default mode is standard")
-async def rs(ctx, nickname: str = "xd", mode: str = "0", ):
+async def rs(ctx, mode: str = "0", nickname: str = "xd"):
+    error_f = 0
     pp = 0
-    if get_username(ctx.message.author) != "0":
+    if get_username(ctx.message.author) != "0" and nickname == "xd":
         nickname = get_username(ctx.message.author)
         mode = determine_mode(mode)
         x = await user_recent(nickname, mode)
+        if x is None:
+            error_f = 1
     else:
         mode = determine_mode(mode)
         x = await user_recent(nickname, mode)
-        
-    if mode == "3":
-        pp = calculate_mania_pp
-        
-    mapa = await find_beatmap(x.beatmap_id)
+        if x is None:
+            error_f = 1
 
-    await ctx.message.channel.send(nickname + " - " + str(mapa.artist) + " - " + str(mapa.title) +
-                                   " [" + str(mapa.version) + "] +" + str(decode_mods(x.enabled_mods)) +
-                                       str(pp))
+    if error_f == 0:
+
+        mods = get_mods(x.enabled_mods)
+        if not mods:
+            mods = []
+            mods.append('NM')
+        z = ""
+        for mod in mods:
+            z += mod + ", "
+
+        mapa = await find_beatmap(x.beatmap_id)
+
+        if mode == "3":
+            pp = calculate_mania_pp(mapa, x)
+
+        acc = calculate_acc(x, mode)
+
+        await ctx.message.channel.send(nickname + ": " + str(mapa.artist) + " - " + str(mapa.title) + " [" +
+                                   str(mapa.version) + "] +" + str(z)[:-2] + " " + str(acc) + "%  -  " + str(pp) + "pp")
+    else:
+        await ctx.message.channel.send("Brak ostatnio zagranych map (at least on chosen gamemode) ;(")
 
 
-bot.on_command_error():
-    print("XD")
 
-
-bot.run('')
+bot.run('Njg0MDU3MjM2MjA0ODE0Mzk4.XmFncg.XowWLUM9_q-0bj_RsNKeHaWnqh8')
