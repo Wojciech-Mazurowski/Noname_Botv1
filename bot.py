@@ -8,7 +8,10 @@ from discord.ext import commands
 
 prefix = '!'
 
-api = OsuApi('')
+get_api = open("apis.txt", "r")
+apis = get_api.readlines()
+token = apis[1]
+api = OsuApi(apis[0][:-1])
 bot = commands.Bot(command_prefix=prefix)
 
 
@@ -103,6 +106,8 @@ def calculate_mania_pp(beatmap, player_score):
             multiplier *= 0.9
         if mod == "EZ":
             multiplier *= 0.5
+        if mod == "DT":
+            multiplier *= 2.3
 
     score = player_score.score
     od = beatmap.diff_overall
@@ -179,7 +184,6 @@ async def user_recent(username, mod):
 async def welcoming_message(user):
     bests = await api.get_user_bests(user, mode=0, type_str='string', limit=1)
     mapname = await api.get_beatmap(beatmap_id=bests[0].beatmap_id)
-    print(mapname.creator + " " + mapname.title)
     return mapname.creator + ' ' + mapname.title + ' ' + str(bests[0].pp) + 'pp'
 
 
@@ -188,6 +192,12 @@ async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
 
 
+@bot.event
+async def on_guild_join(guild):
+    if guild.system_channel is not None:
+        await guild.system_channel.send("Hello dear friends :))))))")
+    elif guild.rules_channel is not None:
+        await guild.rules_channel.send("Hello dear friends :))))))")
 '''
 @client.event
 async def on_member_join(member):
@@ -213,14 +223,13 @@ async def hello(ctx):
 # Link an User command:
 @bot.command(name='link',
              help='!link username  :-Powiazuje gracza z nazwa w osu :)')
-async def link(ctx, username: str, ):
+async def link(ctx, username: str):
     flag = 0
     f = open("Gracze.txt", "r")
     f_line = f.readlines()
     for x in f_line:
         z = x.split('*')
         z = z[1][:-1]
-        print(z)
         if str(ctx.message.author) == str(z):
             await ctx.message.channel.send(
                 'juz zlinkowales konto uzyj !unlink aby odlinkowac :)')
@@ -233,6 +242,32 @@ async def link(ctx, username: str, ):
         await ctx.message.channel.send(
             'Gratuluje byczku od teraz mozesz nie wpisywac nicknamu przy komendach')
     f.close()
+
+
+@bot.command(name='unlink', help='!unlink  := usuwa polaczenie nicku z graczem')
+async def unlink(ctx):
+    flag = 0
+    f = open("gracze.txt", "r")
+    f_line = f.readlines()
+    f = open("gracze.txt", "w")
+    for line in f_line:
+        splitted = line.split('*')
+        if splitted[1][:-1] != str(ctx.message.author):
+            f.write(line)
+        else:
+            flag = 1
+    if flag == 1:
+        await ctx.message.add_reaction('\U0001F44D')
+    if flag == 0:
+        await ctx.message.channel.send("You don't have any linked accounts :(")
+
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.errors.MissingRequiredArgument):
+        if str(error.param)[:-5] == "username":
+            await ctx.message.channel.send("Wrong syntax, use: !link username")
 
 
 @bot.command(name='stary_gracz', help='Posluchaj no slow starego dobrego gracza')
@@ -333,4 +368,4 @@ async def rs(ctx, mode: str = "0", nickname: str = "xd"):
 
 
 
-bot.run('')
+bot.run(token)
