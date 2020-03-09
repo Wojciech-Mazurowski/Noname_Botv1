@@ -12,7 +12,7 @@ get_api = open("apis.txt", "r")
 apis = get_api.readlines()
 token = apis[1]
 api = OsuApi(apis[0][:-1])
-bot = commands.Bot(command_prefix=prefix)
+bot = commands.Bot(commands.when_mentioned_or(prefix))
 
 
 def count_notes(player_score): # player score is a list with user_recent
@@ -46,7 +46,7 @@ def calculate_acc(beatmap, gamemode):
         user_score += float(beatmap.count100) * 100.0
         user_score += float(beatmap.count50) * 50.0
     
-    elif gamemode == '1': # dont remember
+    elif gamemode == '1': # don't remember
         '''   full score:  '''
         unscaled = float(beatmap.count300)
         unscaled += float(beatmap.count100)
@@ -97,7 +97,7 @@ def calculate_acc(beatmap, gamemode):
     
 
 def calculate_mania_pp(beatmap, player_score):
-
+    p_flag = 0
     mods = get_mods(player_score.enabled_mods)
 
     multiplier = 0.8
@@ -122,10 +122,19 @@ def calculate_mania_pp(beatmap, player_score):
     
     strain_value = float((5 * max(1.0, stars / 0.2) - 4) ** 2.2 / 135 * (1 + 0.1 * min(1.0, note_count/1500)))
     
-    if score <= 500000:
-        strain_value = 0
-    
-    elif score <= 600000:
+    if score <= 500000: # WP
+        # strain_value = 0
+        p_flag = 1
+        acc = calculate_acc(player_score, "3")
+        if acc > 99:
+            score = 950000
+        elif acc > 95:
+            score = 850000
+        elif acc > 91:
+            score = 750000
+        else:
+            score = 650000
+    if score <= 600000:
         strain_value *= ((score - 500000) / 100000 * 0.3)
         
     elif score <= 700000:
@@ -138,7 +147,7 @@ def calculate_mania_pp(beatmap, player_score):
         strain_value *= (0.75 + (score - 800000) / 100000 * 0.15)
         
     else:
-        strain_value *= (0.75 + (score - 800000) / 100000 * 0.15)
+        strain_value *= (0.75 + (score - 900000) / 100000 * 0.1)
     
     acc_value = float(max(0.0, 0.2 - ((hit300_range - 34) * 0.006667)) * strain_value * (max(0, score - 960000) / 40000)
                       ** 1.1)
@@ -149,7 +158,6 @@ def calculate_mania_pp(beatmap, player_score):
 
     if pp_value < 0:
         pp_value = 0
-    
     return round(pp_value, 2)
     
     
@@ -315,7 +323,7 @@ def determine_mode(mode):
         mode = "1"
     if mode == "-c":
         mode = "2"
-    if mode == "0":
+    if mode == "0" or mode == "-s":
         mode = "0"
     return mode
 
@@ -331,6 +339,7 @@ async def find_beatmap(beatmap_id):
                              "nickname for linked ppl, default mode is standard")
 async def rs(ctx, mode: str = "0", nickname: str = "xd"):
     error_f = 0
+    prediction_f = 0
     pp = 0
     if get_username(ctx.message.author) != "0" and nickname == "xd":
         nickname = get_username(ctx.message.author)
@@ -358,6 +367,9 @@ async def rs(ctx, mode: str = "0", nickname: str = "xd"):
 
         if mode == "3":
             pp = calculate_mania_pp(mapa, x)
+            if x.score <= 500000:
+                pp = "Predicted pp: (work in progress)  " + str(pp)
+
 
         acc = calculate_acc(x, mode)
 
@@ -365,7 +377,6 @@ async def rs(ctx, mode: str = "0", nickname: str = "xd"):
                                    str(mapa.version) + "] +" + str(z)[:-2] + " " + str(acc) + "%  -  " + str(pp) + "pp")
     else:
         await ctx.message.channel.send("Brak ostatnio zagranych map (at least on chosen gamemode) ;(")
-
 
 
 bot.run(token)
